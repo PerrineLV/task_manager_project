@@ -1,3 +1,4 @@
+import smtplib
 from datetime import datetime
 from unittest.mock import Mock, mock_open, patch
 
@@ -82,6 +83,82 @@ class TestEmailService:
 
         # Vérification que l'erreur est gérée et retourne False
         assert result is False
+
+    @patch("src.task_manager.services.smtplib.SMTP")
+    def test_send_task_reminder_smtp_exception(self, mock_smtp):
+        """Test gestion erreur SMTPException lors de l'envoi"""
+        # Configuration du mock pour lever une exception SMTPException
+        mock_smtp.side_effect = smtplib.SMTPException("SMTP server error")
+
+        # Configuration des credentials
+        self.email_service.configure_credentials("test@example.com", "password")
+
+        # Appel de la méthode qui doit gérer l'exception
+        result = self.email_service.send_task_reminder(
+            "user@example.com", "Test Task", "2025-07-15"
+        )
+
+        # Vérification que l'erreur est gérée et retourne False
+        assert result is False
+
+    @patch("src.task_manager.services.smtplib.SMTP")
+    def test_send_completion_notification_smtp_exception(self, mock_smtp):
+        """Test gestion erreur SMTPException lors de l'envoi de notification"""
+        # Configuration du mock pour lever une exception SMTPException
+        mock_smtp.side_effect = smtplib.SMTPException("SMTP server error")
+
+        # Appel de la méthode qui doit gérer l'exception
+        result = self.email_service.send_completion_notification(
+            "user@example.com", "Test Task"
+        )
+
+        # Vérification que l'erreur est gérée et retourne False
+        assert result is False
+
+    @patch("src.task_manager.services.smtplib.SMTP")
+    def test_send_completion_notification_general_exception(self, mock_smtp):
+        """Test gestion erreur générale lors de l'envoi de notification"""
+        # Configuration du mock pour lever une exception générale
+        mock_smtp.side_effect = Exception("General error")
+
+        # Appel de la méthode qui doit gérer l'exception
+        result = self.email_service.send_completion_notification(
+            "user@example.com", "Test Task"
+        )
+
+        # Vérification que l'erreur est gérée et retourne False
+        assert result is False
+
+    def test_configure_credentials(self):
+        """Test configuration des credentials SMTP"""
+        # Configuration des credentials
+        self.email_service.configure_credentials("test@example.com", "password123")
+
+        # Vérification que les credentials sont bien stockés
+        assert self.email_service.username == "test@example.com"
+        assert self.email_service.password == "password123"
+
+    def test_email_service_initialization(self):
+        """Test initialisation du service email avec paramètres par défaut"""
+        # Création d'un service email avec paramètres par défaut
+        email_service = EmailService()
+
+        # Vérification des valeurs par défaut
+        assert email_service.smtp_server == "smtp.gmail.com"
+        assert email_service.port == 587
+        assert email_service.username is None
+        assert email_service.password is None
+
+    def test_email_service_initialization_custom(self):
+        """Test initialisation du service email avec paramètres personnalisés"""
+        # Création d'un service email avec paramètres personnalisés
+        email_service = EmailService("smtp.custom.com", 465)
+
+        # Vérification des valeurs personnalisées
+        assert email_service.smtp_server == "smtp.custom.com"
+        assert email_service.port == 465
+        assert email_service.username is None
+        assert email_service.password is None
 
 
 @pytest.mark.integration
@@ -194,3 +271,79 @@ class TestReportService:
         assert "completed_tasks" in report
         assert "pending_tasks" in report
         assert "completion_rate" in report
+
+    def test_generate_daily_report_tasks_without_created_date(self):
+        """Test génération rapport avec tâches sans date de création"""
+        # Création de tâches sans attribut created_date
+        tasks_without_date = [
+            Task("Tâche sans date 1", "Description 1", Priority.HIGH),
+            Task("Tâche sans date 2", "Description 2", Priority.LOW),
+        ]
+
+        # Ne pas ajouter d'attribut created_date pour tester le cas où il n'existe pas
+        for task in tasks_without_date:
+            task.completed = False
+
+        # Génération du rapport
+        report = self.report_service.generate_daily_report(tasks_without_date)
+
+        # Vérification que toutes les tâches sont incluses quand il n'y a pas de date
+        assert report["total_tasks"] == 2
+        assert report["completed_tasks"] == 0
+        assert report["pending_tasks"] == 2
+
+    def test_generate_daily_report_tasks_with_string_date(self):
+        """Test génération rapport avec date de création en string"""
+        # Création de tâches avec date de création en string
+        tasks_with_string_date = [
+            Task("Tâche date string", "Description", Priority.MEDIUM),
+        ]
+
+        # Ajout d'une date de création en string (non-datetime)
+        tasks_with_string_date[0].created_date = "2025-07-11"
+        tasks_with_string_date[0].completed = True
+
+        # Génération du rapport avec la même date
+        specific_date = datetime(2025, 7, 11)
+        report = self.report_service.generate_daily_report(
+            tasks_with_string_date, specific_date
+        )
+
+        # Vérification que la tâche est incluse
+        assert report["total_tasks"] == 1
+        assert report["completed_tasks"] == 1
+        assert report["date"] == "2025-07-11"
+
+    @patch("builtins.open", side_effect=Exception("Unexpected error"))
+    def test_export_tasks_csv_general_exception(self, mock_file):
+        """Test export CSV avec erreur générale inattendue"""
+        # Test de gestion d'erreur générale lors de l'écriture
+        with pytest.raises(Exception, match="Erreur inattendue lors de l'export CSV"):
+            self.report_service.export_tasks_csv(self.test_tasks, "test.csv")
+
+    def test_export_tasks_csv_empty_tasks(self):
+        """Test export CSV avec liste vide"""
+        # Test d'export avec une liste vide
+        with patch("builtins.open", new_callable=mock_open) as mock_file:
+            result = self.report_service.export_tasks_csv([], "empty_tasks.csv")
+
+            # Vérification que l'export réussit même avec une liste vide
+            assert result is True
+            mock_file.assert_called_once_with("empty_tasks.csv", "w", newline="", encoding="utf-8")
+
+    def test_export_tasks_csv_tasks_with_missing_attributes(self):
+        """Test export CSV avec tâches ayant des attributs manquants"""
+        # Création d'une tâche avec des attributs manquants
+        class MinimalTask:
+            def __init__(self, title):
+                self.title = title
+                # Pas d'autres attributs pour tester getattr avec valeurs par défaut
+
+        minimal_tasks = [MinimalTask("Tâche minimale")]
+
+        with patch("builtins.open", new_callable=mock_open) as mock_file:
+            result = self.report_service.export_tasks_csv(minimal_tasks, "minimal_tasks.csv")
+
+            # Vérification que l'export réussit avec des valeurs par défaut
+            assert result is True
+            mock_file.assert_called_once_with("minimal_tasks.csv", "w", newline="", encoding="utf-8")

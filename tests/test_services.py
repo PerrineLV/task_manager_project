@@ -329,7 +329,9 @@ class TestReportService:
 
             # Vérification que l'export réussit même avec une liste vide
             assert result is True
-            mock_file.assert_called_once_with("empty_tasks.csv", "w", newline="", encoding="utf-8")
+            mock_file.assert_called_once_with(
+                "empty_tasks.csv", "w", newline="", encoding="utf-8"
+            )
 
     def test_export_tasks_csv_tasks_with_missing_attributes(self):
         """Test export CSV avec tâches ayant des attributs manquants"""
@@ -342,8 +344,12 @@ class TestReportService:
         minimal_tasks = [MinimalTask("Tâche minimale")]
 
         with patch("builtins.open", new_callable=mock_open) as mock_file:
-            result = self.report_service.export_tasks_csv(minimal_tasks, "minimal_tasks.csv")
+            result = self.report_service.export_tasks_csv(
+                minimal_tasks, "minimal_tasks.csv"
+            )
 
             # Vérification que l'export réussit avec des valeurs par défaut
             assert result is True
-            mock_file.assert_called_once_with("minimal_tasks.csv", "w", newline="", encoding="utf-8")
+            mock_file.assert_called_once_with(
+                "minimal_tasks.csv", "w", newline="", encoding="utf-8"
+            )

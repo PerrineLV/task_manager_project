@@ -1,6 +1,7 @@
+import time
 from datetime import datetime
 from enum import Enum
-import time
+
 
 class Priority(Enum):
     # Définition des priorités (LOW, MEDIUM, HIGH, URGENT)
@@ -9,6 +10,7 @@ class Priority(Enum):
     HIGH = "high"
     URGENT = "urgent"
 
+
 class Status(Enum):
     # Définition des statuts (TODO, IN_PROGRESS, DONE, CANCELLED)
     TODO = "todo"
@@ -16,16 +18,18 @@ class Status(Enum):
     DONE = "done"
     CANCELLED = "cancelled"
 
+
 class Task:
     """Une tâche avec toutes ses propriétés"""
+
     def __init__(self, title, description="", priority=Priority.MEDIUM):
         # Validation des paramètres
         if not title or not title.strip():
             raise ValueError("Le titre ne peut pas être vide")
-        
+
         if not isinstance(priority, Priority):
             raise ValueError("La priorité doit être une instance de Priority")
-        
+
         # Initialisation des attributs
         self.id = time.time()
         self.title = title.strip()
@@ -62,8 +66,10 @@ class Task:
             "priority": self.priority.value,
             "status": self.status.value,
             "created_at": self.created_at.isoformat(),
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
-            "project_id": self.project_id
+            "completed_at": (
+                self.completed_at.isoformat() if self.completed_at else None
+            ),
+            "project_id": self.project_id,
         }
 
     @classmethod
@@ -73,14 +79,18 @@ class Task:
         task = cls(
             title=data["title"],
             description=data.get("description", ""),
-            priority=Priority[data["priority"].upper()]
+            priority=Priority[data["priority"].upper()],
         )
-        
+
         # Restauration des autres attributs
         task.id = data["id"]
         task.status = Status[data["status"].upper()]
         task.created_at = datetime.fromisoformat(data["created_at"])
-        task.completed_at = datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") else None
+        task.completed_at = (
+            datetime.fromisoformat(data["completed_at"])
+            if data.get("completed_at")
+            else None
+        )
         task.project_id = data.get("project_id")
-        
+
         return task

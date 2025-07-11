@@ -1,11 +1,15 @@
 import json
 from typing import List, Optional
-from .task import Task, Priority, Status
+
+from .task import Priority, Status, Task
+
 
 class TaskManager:
     """Gestionnaire principal des tâches"""
+
     def __init__(self, storage_file="tasks.json"):
-        # Initialise la liste des tâches vide et définit le fichier de stockage par défaut
+        # Initialise la liste des tâches vide et définit le fichier de stockage
+        # par défaut
         self.tasks = []
         self.storage_file = storage_file
 
@@ -46,7 +50,7 @@ class TaskManager:
         # Gère les erreurs d'écriture en levant une exception explicite
         filename = filename or self.storage_file
         try:
-            with open(filename, 'w', encoding='utf-8') as f:
+            with open(filename, "w", encoding="utf-8") as f:
                 tasks_data = [task.to_dict() for task in self.tasks]
                 json.dump(tasks_data, f, indent=2, ensure_ascii=False)
         except (IOError, OSError) as e:
@@ -57,7 +61,7 @@ class TaskManager:
         # Gère le cas où le fichier n'existe pas en initialisant une liste vide
         filename = filename or self.storage_file
         try:
-            with open(filename, 'r', encoding='utf-8') as f:
+            with open(filename, "r", encoding="utf-8") as f:
                 tasks_data = json.load(f)
                 self.tasks = [Task.from_dict(task_data) for task_data in tasks_data]
         except FileNotFoundError:
@@ -73,21 +77,27 @@ class TaskManager:
         # - Répartition par priorité
         # - Répartition par statut
         total_tasks = len(self.tasks)
-        completed_tasks = len([task for task in self.tasks if task.status == Status.DONE])
-        
+        completed_tasks = len(
+            [task for task in self.tasks if task.status == Status.DONE]
+        )
+
         # Comptage par priorité
         tasks_by_priority = {}
         for priority in Priority:
-            tasks_by_priority[priority.value] = len([task for task in self.tasks if task.priority == priority])
-        
+            tasks_by_priority[priority.value] = len(
+                [task for task in self.tasks if task.priority == priority]
+            )
+
         # Comptage par statut
         tasks_by_status = {}
         for status in Status:
-            tasks_by_status[status.value] = len([task for task in self.tasks if task.status == status])
-        
+            tasks_by_status[status.value] = len(
+                [task for task in self.tasks if task.status == status]
+            )
+
         return {
             "total_tasks": total_tasks,
             "completed_tasks": completed_tasks,
             "tasks_by_priority": tasks_by_priority,
-            "tasks_by_status": tasks_by_status
+            "tasks_by_status": tasks_by_status,
         }
